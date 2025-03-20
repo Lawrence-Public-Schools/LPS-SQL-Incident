@@ -34,7 +34,14 @@ LocationDetails AS (
 PersonRole AS (
     SELECT
         inc.incident_id,
-        ilc.incident_category AS person_role 
+        stu.student_number,
+        ilc.incident_category AS person_role,
+        ROW_NUMBER() OVER (PARTITION BY inc.incident_id, stu.student_number ORDER BY 
+            CASE 
+                WHEN ilc.incident_category = 'Offender' THEN 1
+                WHEN ilc.incident_category = 'Victim' THEN 2
+                ELSE 3
+            END) AS role_priority
     FROM
         students stu
         JOIN ~[temp.table.current.selection:students] stusel ON stusel.dcid = stu.dcid
@@ -56,7 +63,11 @@ SELECT
 FROM
     IncidentDetails incd
     JOIN LocationDetails locd ON incd.incident_id = locd.incident_id
-    JOIN PersonRole pr ON incd.incident_id = pr.incident_id
+    JOIN (
+        SELECT incident_id, student_number, person_role
+        FROM PersonRole
+        WHERE role_priority = 1 -- Only keep the highest-priority role
+    ) pr ON incd.incident_id = pr.incident_id AND incd.student_number = pr.student_number
 ORDER BY
     incd.student_number,
     incd.incident_id;
