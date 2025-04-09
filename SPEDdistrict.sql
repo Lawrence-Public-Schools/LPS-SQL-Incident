@@ -1,4 +1,3 @@
--- Temp.sql
 WITH yearquery AS (
     SELECT 
         dcid, 
