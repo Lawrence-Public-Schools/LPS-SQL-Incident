@@ -71,7 +71,7 @@ WITH RankedData AS (
         incident inc
     JOIN incident_person_role ipr ON inc.incident_id = ipr.incident_id
     JOIN students stu ON ipr.studentid = stu.id
-    JOIN ~[temp.table.current.selection:students] stusel ON stusel.dcid = stu.dcid -- Join with current selection
+    JOIN ~[temp.table.current.selection:students] stusel ON stusel.dcid = stu.dcid
     JOIN incident_detail ind ON ipr.role_incident_detail_id = ind.incident_detail_id
     JOIN incident_lu_code ilc ON ind.lu_code_id = ilc.lu_code_id
     JOIN schools ON inc.school_number = schools.school_number
