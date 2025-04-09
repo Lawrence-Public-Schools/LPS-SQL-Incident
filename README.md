@@ -86,3 +86,54 @@ WHERE
 ```
 
 ---
+<br>
+<br>
+<br>
+<br>
+<br>
+
+# UPDATE: ADD THIS INTO THE README
+
+## Investigation into SPED Table
+
+### Key Findings
+
+1. **Table Location**:
+   - The `S_MA_STU_SPED_X` table is located in the `PS` schema as a **table** (`object_type = TABLE`).
+   - Using **Data Export Manager** in the Students Core Table, we identified the following fields:
+     - `STUDENTSDCID`, `alternativeeducation`, `levelofneed`, `primarydisability`, `sec504planstatus`, `sped3to5placement`, `sped6to21placement`, `spedevaluationresults`.
+
+2. **Synonym Behavior**:
+   - The `PS_MGMT` schema has a synonym `S_MA_STU_SPED_X` pointing to `PS.S_MA_STU_SPED_X`, allowing access from `PS_MGMT`.
+
+3. **Data and Structure**:
+   - Row counts and data from both `PS.S_MA_STU_SPED_X` and `PS_MGMT.S_MA_STU_SPED_X` are identical, confirming they access the same table.
+
+---
+
+### Why We Can't Use `students.levelofneed`
+
+- The `S_MA_STU_SPED_X` table is a **table extension** of `students`, storing SPED-related fields separately.
+- These fields are not part of the core `students` table and require a join:
+  ```sql
+  LEFT JOIN PS.S_MA_STU_SPED_X sped ON stu.dcid = sped.STUDENTSDCID
+  ```
+
+---
+
+### Why We Use `PS.S_MA_STU_SPED_X`
+
+- **Clarity**: Directly referencing `PS.S_MA_STU_SPED_X` avoids confusion about where the data resides.
+- **Stability**: Avoids dependency on the `PS_MGMT` synonym, which could be removed or repointed.
+- **Performance**: Direct access eliminates potential overhead from synonym resolution.
+
+---
+
+### Final Decision
+
+We will use the direct reference to the table in the `PS` schema:
+```sql
+LEFT JOIN PS.S_MA_STU_SPED_X sped ON stu.dcid = sped.STUDENTSDCID
+```
+
+This ensures clarity, stability, and avoids potential issues with synonym dependencies.
