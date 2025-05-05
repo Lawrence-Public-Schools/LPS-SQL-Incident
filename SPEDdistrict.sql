@@ -46,35 +46,21 @@ RankedData AS (
             WHEN ilc.incident_category = 'Offender' THEN act.action_resolved_desc
             ELSE NULL
         END AS action_resolved_desc,
-        sped.levelofneed AS levelofneed_code,
         CASE
-            WHEN sped.levelofneed IS NULL THEN 'No SPED Data'
-            WHEN sped.levelofneed = '500' THEN 'Does not apply to student (500)'
-            WHEN sped.levelofneed = '01' THEN 'Low - Less than 2 hours of service per week (01)'
-            WHEN sped.levelofneed = '02' THEN 'Low - 2 hours or more of services per week (02)'
-            WHEN sped.levelofneed = '03' THEN 'Moderate (03)'
-            WHEN sped.levelofneed = '04' THEN 'High (04)'
+            WHEN LOWER(ext.EL) IN ('frmr', 'former') THEN 'Former'
+            WHEN LOWER(ext.EL) = 'no' THEN 'No'
+            WHEN LOWER(ext.EL) = 'no-p' THEN 'No-P'
+            WHEN LOWER(ext.EL) = 'ref' THEN 'Referral'
+            WHEN LOWER(ext.EL) = 'yes' THEN 'Yes'
+            WHEN LOWER(ext.EL) = 'yes-p' THEN 'Yes-P'
             ELSE 'Unknown'
-        END AS levelofneed_label,
-        sped.primarydisability AS primarydisability_code,
+        END AS english_learner_code,
         CASE
-            WHEN sped.primarydisability IS NULL THEN 'No SPED Data'
-            WHEN sped.primarydisability = '500' THEN 'Does not apply to student (500)'
-            WHEN sped.primarydisability = '01' THEN 'Intellectual (01)'
-            WHEN sped.primarydisability = '02' THEN 'Sensory/Hard of Hearing or Deaf (02)'
-            WHEN sped.primarydisability = '03' THEN 'Communication (03)'
-            WHEN sped.primarydisability = '04' THEN 'Sensory/Vision Impairment or Blind (04)'
-            WHEN sped.primarydisability = '05' THEN 'Emotional (05)'
-            WHEN sped.primarydisability = '06' THEN 'Physical (06)'
-            WHEN sped.primarydisability = '07' THEN 'Health (07)'
-            WHEN sped.primarydisability = '08' THEN 'Specific Learning Disabilities (08)'
-            WHEN sped.primarydisability = '09' THEN 'Sensory/Deafblind (09)'
-            WHEN sped.primarydisability = '10' THEN 'Multiple Disabilities (10)'
-            WHEN sped.primarydisability = '11' THEN 'Autism (11)'
-            WHEN sped.primarydisability = '12' THEN 'Neurological (12)'
-            WHEN sped.primarydisability = '13' THEN 'Developmental Delay (13)'
+            WHEN LOWER(ext.SPED) = 'yes' THEN 'Yes'
+            WHEN LOWER(ext.SPED) = 'no' THEN 'No'
+            WHEN LOWER(ext.SPED) = 'ref' THEN 'Referral'
             ELSE 'Unknown'
-        END AS primarydisability_label,
+        END AS sped_code,
         ROW_NUMBER() OVER (
             PARTITION BY inc.incident_id, stu.student_number
             ORDER BY act.action_plan_begin_dt DESC NULLS LAST
@@ -83,6 +69,7 @@ RankedData AS (
         incident inc
     JOIN incident_person_role ipr ON inc.incident_id = ipr.incident_id
     JOIN students stu ON ipr.studentid = stu.id
+    LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID -- Join with U_DEF_EXT_STUDENTS
     JOIN incident_detail ind ON ipr.role_incident_detail_id = ind.incident_detail_id
     JOIN incident_lu_code ilc ON ind.lu_code_id = ilc.lu_code_id
     JOIN schools ON inc.school_number = schools.school_number
@@ -103,9 +90,7 @@ RankedData AS (
     ) act ON inc.incident_id = act.incident_id
     LEFT JOIN (
         SELECT
-            stu.student_number,
-            sped.levelofneed,
-            sped.primarydisability
+            stu.student_number
         FROM
             students stu
         LEFT JOIN PS.S_MA_STU_SPED_X sped ON stu.dcid = sped.STUDENTSDCID
@@ -129,11 +114,30 @@ SELECT
     duration_assigned,
     duration_actual,
     action_resolved_desc,
-    levelofneed_label,
-    primarydisability_label
+    english_learner_code,
+    sped_code
 FROM RankedData
 WHERE row_num = 1
 ORDER BY
     incident_ts DESC,
     incident_id,
     student_number;
+
+    -- <th> for this report:
+<th>Incident Date</th>
+<th>Incident ID</th>
+<th>Student Number</th>
+<th>Incident Title</th>
+<th>Person Role</th>
+<th>Incident Category</th>
+<th>School Name</th>
+<th>Created By</th>
+<th>Last Modified By</th>
+<th>Action Plan Begin Date</th>
+<th>Action Plan End Date</th>
+<th>Duration Assigned</th>
+<th>Duration Actual</th>
+<th>Action Resolved Description</th>
+<th>Level of Need</th>
+<th>SPED Code</th>
+<th>English Learner</th>
