@@ -20,6 +20,7 @@ RankedData AS (
         stu.id AS student_id,
         stu.dcid AS student_dcid,
         chr(60) || 'a href=/admin/students/home.html?frn=001' || stu.dcid || ' target=_blank' || chr(62) || stu.student_number || chr(60) || '/a' || chr(62) AS student_link,
+        stu.state_studentnumber AS state_id, -- Add SASID (state_studentnumber) here
         inc.incident_title,
         ilc.incident_category AS person_role,
         ilctype.incident_category,
@@ -69,7 +70,7 @@ RankedData AS (
         incident inc
     JOIN incident_person_role ipr ON inc.incident_id = ipr.incident_id
     JOIN students stu ON ipr.studentid = stu.id
-    LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID -- Join with U_DEF_EXT_STUDENTS
+    LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
     JOIN incident_detail ind ON ipr.role_incident_detail_id = ind.incident_detail_id
     JOIN incident_lu_code ilc ON ind.lu_code_id = ilc.lu_code_id
     JOIN schools ON inc.school_number = schools.school_number
@@ -100,9 +101,12 @@ RankedData AS (
         inc.incident_ts BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
 )
 SELECT
+    student_link, -- Student number link
+    state_id, -- SASID (state ID) added below the student link
+    sped_code,
+    english_learner_code,
     incident_ts,
     incident_link,
-    student_link,
     incident_title,
     person_role,
     incident_category,
@@ -113,9 +117,7 @@ SELECT
     action_plan_end_dt,
     duration_assigned,
     duration_actual,
-    action_resolved_desc,
-    english_learner_code,
-    sped_code
+    action_resolved_desc
 FROM RankedData
 WHERE row_num = 1
 ORDER BY
@@ -124,9 +126,12 @@ ORDER BY
     student_number;
 
     -- <th> for this report:
+<th>Student Number</th>
+<th>State ID</th>
+<th>SPED Code</th>
+<th>English Learner</th>
 <th>Incident Date</th>
 <th>Incident ID</th>
-<th>Student Number</th>
 <th>Incident Title</th>
 <th>Person Role</th>
 <th>Incident Category</th>
@@ -138,6 +143,3 @@ ORDER BY
 <th>Duration Assigned</th>
 <th>Duration Actual</th>
 <th>Action Resolved Description</th>
-<th>Level of Need</th>
-<th>SPED Code</th>
-<th>English Learner</th>
