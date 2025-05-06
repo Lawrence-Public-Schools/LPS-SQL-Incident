@@ -15,38 +15,23 @@ RankedData AS (
     SELECT
         inc.incident_id,
         chr(60) || 'a href=/admin/incidents/incidentlog.html?id=' || inc.incident_id || ' target=_blank' || chr(62) || inc.incident_id || chr(60) || '/a' || chr(62) AS incident_link,
-        inc.incident_ts,
+        TO_CHAR(inc.incident_ts, 'MM-DD-YYYY') AS incident_ts, -- Format incident timestamp to only show the date
         stu.student_number,
         stu.id AS student_id,
         stu.dcid AS student_dcid,
         chr(60) || 'a href=/admin/students/home.html?frn=001' || stu.dcid || ' target=_blank' || chr(62) || stu.student_number || chr(60) || '/a' || chr(62) AS student_link,
-        stu.state_studentnumber AS state_id, -- Add SASID (state_studentnumber) here
+        stu.state_studentnumber AS state_id,
         inc.incident_title,
         ilc.incident_category AS person_role,
         ilctype.incident_category,
         schools.name AS school_name,
         created_teacher.lastfirst AS created_by_name,
         modified_teacher.lastfirst AS last_modified_by_name,
-        CASE 
-            WHEN ilc.incident_category = 'Offender' THEN act.action_plan_begin_dt
-            ELSE NULL
-        END AS action_plan_begin_dt,
-        CASE 
-            WHEN ilc.incident_category = 'Offender' THEN act.action_plan_end_dt
-            ELSE NULL
-        END AS action_plan_end_dt,
-        CASE 
-            WHEN ilc.incident_category = 'Offender' THEN act.duration_assigned
-            ELSE NULL
-        END AS duration_assigned,
-        CASE 
-            WHEN ilc.incident_category = 'Offender' THEN act.duration_actual
-            ELSE NULL
-        END AS duration_actual,
-        CASE 
-            WHEN ilc.incident_category = 'Offender' THEN act.action_resolved_desc
-            ELSE NULL
-        END AS action_resolved_desc,
+        TO_CHAR(act.action_plan_begin_dt, 'MM-DD-YYYY') AS action_plan_begin_dt,
+        TO_CHAR(act.action_plan_end_dt, 'MM-DD-YYYY') AS action_plan_end_dt,
+        act.duration_assigned,
+        act.duration_actual,
+        act.action_resolved_desc,
         CASE
             WHEN LOWER(ext.EL) IN ('frmr', 'former') THEN 'Former'
             WHEN LOWER(ext.EL) = 'no' THEN 'No'
@@ -101,8 +86,8 @@ RankedData AS (
         inc.incident_ts BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
 )
 SELECT
-    student_link, -- Student number link
-    state_id, -- SASID (state ID) added below the student link
+    student_link,
+    state_id,
     sped_code,
     english_learner_code,
     incident_ts,
@@ -125,7 +110,7 @@ ORDER BY
     incident_id,
     student_number;
 
-    -- <th> for this report:
+-- <th> for this report:
 <th>Student Number</th>
 <th>State ID</th>
 <th>SPED Code</th>
