@@ -15,7 +15,7 @@ RankedData AS (
     SELECT
         inc.incident_id,
         chr(60) || 'a href=/admin/incidents/incidentlog.html?id=' || inc.incident_id || ' target=_blank' || chr(62) || inc.incident_id || chr(60) || '/a' || chr(62) AS incident_link,
-        TO_CHAR(inc.incident_ts, 'MM-DD-YYYY') AS incident_ts, -- Format incident timestamp to only show the date
+        TO_CHAR(inc.incident_ts, 'MM-DD-YYYY') AS incident_ts,
         stu.student_number,
         stu.id AS student_id,
         stu.dcid AS student_dcid,
@@ -24,7 +24,7 @@ RankedData AS (
         inc.incident_title,
         ilc.incident_category AS person_role,
         ilctype.incident_category,
-        schools.name AS school_name,
+        schools.abbreviation AS school_name, 
         created_teacher.lastfirst AS created_by_name,
         modified_teacher.lastfirst AS last_modified_by_name,
         TO_CHAR(act.action_plan_begin_dt, 'MM-DD-YYYY') AS action_plan_begin_dt,
@@ -95,7 +95,7 @@ SELECT
     incident_title,
     person_role,
     incident_category,
-    school_name,
+    school_name, -- Abbreviation of the school name
     created_by_name,
     last_modified_by_name,
     action_plan_begin_dt,
