@@ -88,34 +88,52 @@ action_code_cte AS (
         PS.INCIDENT_ACTION act
     JOIN incident_detail ind ON act.action_incident_detail_id = ind.incident_detail_id
     LEFT JOIN incident_lu_sub_code lu_sub ON ind.lu_sub_code_id = lu_sub.lu_sub_code_id
+),
+RankedResults AS (
+    SELECT
+        sb.student_number,
+        sb.state_id,
+        sb.student_lastfirst,
+        ib.incident_id,
+        ib.incident_ts,
+        ib.incident_title,
+        sch.abbreviation AS school_abbreviation,
+        sp.sped_code,
+        el.english_learner_code,
+        ac.action_short_desc,
+        role.person_role,
+        ROW_NUMBER() OVER (
+            PARTITION BY ib.incident_id, sb.student_number
+            ORDER BY ac.action_short_desc DESC NULLS LAST
+        ) AS row_num
+    FROM
+        incident_person_role ipr
+        JOIN incident_base ib ON ipr.incident_id = ib.incident_id
+        JOIN student_base sb ON ipr.studentid = sb.student_id
+        JOIN schools sch ON ib.school_number = sch.school_number
+        LEFT JOIN sped_cte sp ON sb.student_id = sp.student_id
+        LEFT JOIN el_cte el ON sb.student_id = el.student_id
+        LEFT JOIN role_cte role ON ib.incident_id = role.incident_id AND sb.student_id = role.student_id
+        LEFT JOIN action_code_cte ac ON ib.incident_id = ac.incident_id
 )
 SELECT
-    sb.student_number,
-    sb.state_id,
-    sb.student_lastfirst,
-    ib.incident_id,
-    ib.incident_ts,
-    ib.incident_title,
-    sch.abbreviation AS school_abbreviation,
-    sp.sped_code,
-    el.english_learner_code,
-    -- ac.action_code,
-    ac.action_short_desc,
-    -- ac.action_long_desc,
-    role.person_role
-FROM
-    incident_person_role ipr
-    JOIN incident_base ib ON ipr.incident_id = ib.incident_id
-    JOIN student_base sb ON ipr.studentid = sb.student_id
-    JOIN schools sch ON ib.school_number = sch.school_number
-    LEFT JOIN sped_cte sp ON sb.student_id = sp.student_id
-    LEFT JOIN el_cte el ON sb.student_id = el.student_id
-    LEFT JOIN role_cte role ON ib.incident_id = role.incident_id AND sb.student_id = role.student_id
-    LEFT JOIN action_code_cte ac ON ib.incident_id = ac.incident_id
+    student_number,
+    state_id,
+    student_lastfirst,
+    incident_id,
+    incident_ts,
+    incident_title,
+    school_abbreviation,
+    sped_code,
+    english_learner_code,
+    action_short_desc,
+    person_role
+FROM RankedResults
+WHERE row_num = 1
 ORDER BY
-    sb.student_number,
-    sb.state_id,
-    ib.incident_id,
-    ib.incident_ts,
-    ib.incident_title,
-    sch.abbreviation;
+    student_number,
+    state_id,
+    incident_id,
+    incident_ts,
+    incident_title,
+    school_abbreviation;
