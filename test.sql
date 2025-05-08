@@ -22,8 +22,8 @@ incident_base AS (
     FROM
         incident inc
     JOIN yearquery yq ON inc.incident_ts BETWEEN yq.FirstDay AND yq.LastDay
-    WHERE
-        inc.incident_id = 66144
+    -- WHERE
+    --     inc.incident_id = 66144
 ),
 student_base AS (
     SELECT
@@ -77,6 +77,17 @@ role_cte AS (
         incident_person_role ipr
         JOIN incident_detail ind ON ipr.role_incident_detail_id = ind.incident_detail_id
         JOIN incident_lu_code ilc ON ind.lu_code_id = ilc.lu_code_id
+),
+action_code_cte AS (
+    SELECT
+        act.incident_id,
+        ind.lu_sub_code_id AS action_code,
+        lu_sub.short_desc AS action_short_desc
+        -- lu_sub.long_desc AS action_long_desc
+    FROM
+        PS.INCIDENT_ACTION act
+    JOIN incident_detail ind ON act.action_incident_detail_id = ind.incident_detail_id
+    LEFT JOIN incident_lu_sub_code lu_sub ON ind.lu_sub_code_id = lu_sub.lu_sub_code_id
 )
 SELECT
     sb.student_number,
@@ -88,6 +99,9 @@ SELECT
     sch.abbreviation AS school_abbreviation,
     sp.sped_code,
     el.english_learner_code,
+    -- ac.action_code,
+    ac.action_short_desc,
+    -- ac.action_long_desc,
     role.person_role
 FROM
     incident_person_role ipr
@@ -97,6 +111,7 @@ FROM
     LEFT JOIN sped_cte sp ON sb.student_id = sp.student_id
     LEFT JOIN el_cte el ON sb.student_id = el.student_id
     LEFT JOIN role_cte role ON ib.incident_id = role.incident_id AND sb.student_id = role.student_id
+    LEFT JOIN action_code_cte ac ON ib.incident_id = ac.incident_id
 ORDER BY
     sb.student_number,
     sb.state_id,
