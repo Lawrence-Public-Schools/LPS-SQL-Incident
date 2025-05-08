@@ -118,7 +118,8 @@ RankedResults AS (
         sb.student_number,
         sb.state_id,
         sb.student_lastfirst,
-        ib.incident_id,
+        chr(60) || 'a href=/admin/incidents/incidentlog.html?id=' || ib.incident_id || ' target=_blank' || chr(62) || ib.incident_id || chr(60) || '/a' || chr(62) AS incident_link,
+        chr(60) || 'a href=/admin/students/home.html?frn=001' || sb.dcid || ' target=_blank' || chr(62) || sb.student_number || chr(60) || '/a' || chr(62) AS student_link,
         ib.incident_ts,
         ib.incident_title,
         sch.abbreviation AS school_abbreviation,
@@ -152,10 +153,10 @@ RankedResults AS (
         LEFT JOIN teachers_cte modified_teacher ON ib.last_modified_by = modified_teacher.id
 )
 SELECT
-    student_number,
+    student_link,
     state_id,
     student_lastfirst,
-    incident_id,
+    incident_link,
     incident_ts,
     incident_title,
     school_abbreviation,
@@ -176,7 +177,7 @@ WHERE row_num = 1
 ORDER BY
     student_number,
     state_id,
-    incident_id,
+    incident_link,
     incident_ts,
     incident_title,
     school_abbreviation;
