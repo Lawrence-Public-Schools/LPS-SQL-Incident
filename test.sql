@@ -92,6 +92,16 @@ action_code_cte AS (
     JOIN incident_detail ind ON act.action_incident_detail_id = ind.incident_detail_id
     LEFT JOIN incident_lu_sub_code lu_sub ON ind.lu_sub_code_id = lu_sub.lu_sub_code_id
 ),
+action_plan_cte AS (
+    SELECT
+        act.incident_id,
+        TO_CHAR(act.action_plan_begin_dt, 'MM-DD-YYYY') AS action_plan_begin_dt,
+        TO_CHAR(act.action_plan_end_dt, 'MM-DD-YYYY') AS action_plan_end_dt,
+        act.duration_assigned,
+        act.duration_actual
+    FROM
+        PS.INCIDENT_ACTION act
+),
 teachers_cte AS (
     SELECT id, lastfirst FROM teachers
 ),
@@ -107,6 +117,10 @@ RankedResults AS (
         sp.sped_code,
         el.english_learner_code,
         ac.action_short_desc,
+        ap.action_plan_begin_dt,
+        ap.action_plan_end_dt,
+        ap.duration_assigned,
+        ap.duration_actual,
         role.person_role,
         ib.incident_category,
         created_teacher.lastfirst AS created_by_name,
@@ -124,6 +138,7 @@ RankedResults AS (
         LEFT JOIN el_cte el ON sb.student_id = el.student_id
         LEFT JOIN role_cte role ON ib.incident_id = role.incident_id AND sb.student_id = role.student_id
         LEFT JOIN action_code_cte ac ON ib.incident_id = ac.incident_id
+        LEFT JOIN action_plan_cte ap ON ib.incident_id = ap.incident_id
         LEFT JOIN teachers_cte created_teacher ON ib.created_by = created_teacher.id
         LEFT JOIN teachers_cte modified_teacher ON ib.last_modified_by = modified_teacher.id
 )
@@ -138,6 +153,10 @@ SELECT
     sped_code,
     english_learner_code,
     action_short_desc,
+    action_plan_begin_dt,
+    action_plan_end_dt,
+    duration_assigned,
+    duration_actual,
     person_role,
     incident_category,
     created_by_name,
