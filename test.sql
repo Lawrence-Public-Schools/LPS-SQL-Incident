@@ -15,7 +15,8 @@ incident_base AS (
     SELECT
         inc.incident_id,
         inc.incident_title,
-        TO_CHAR(inc.incident_ts, 'MM-DD-YYYY') AS incident_ts,
+        TO_CHAR(inc.incident_ts, 'YYYY-MM-DD') AS incident_ts,
+        inc.incident_ts AS incident_ts_raw,
         inc.school_number,
         inc.created_by,
         inc.last_modified_by,
@@ -33,8 +34,8 @@ incident_base AS (
         FROM
             PS.INCIDENT_ACTION act
     ) act ON inc.incident_id = act.incident_id
-            -- WHERE
-    --     inc.incident_id = 66144
+    WHERE
+        inc.incident_ts BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
 ),
 student_base AS (
     SELECT
@@ -94,7 +95,6 @@ action_code_cte AS (
         act.incident_id,
         ind.lu_sub_code_id AS action_code,
         lu_sub.short_desc AS action_short_desc
-        -- lu_sub.long_desc AS action_long_desc
     FROM
         PS.INCIDENT_ACTION act
     JOIN incident_detail ind ON act.action_incident_detail_id = ind.incident_detail_id
@@ -142,6 +142,7 @@ RankedResults AS (
     FROM
         incident_person_role ipr
         JOIN incident_base ib ON ipr.incident_id = ib.incident_id
+        JOIN yearquery yq ON ib.incident_ts_raw BETWEEN yq.FirstDay AND yq.LastDay
         JOIN student_base sb ON ipr.studentid = sb.student_id
         JOIN schools sch ON ib.school_number = sch.school_number
         LEFT JOIN sped_cte sp ON sb.student_id = sp.student_id
@@ -151,6 +152,8 @@ RankedResults AS (
         LEFT JOIN action_plan_cte ap ON ib.incident_id = ap.incident_id
         LEFT JOIN teachers_cte created_teacher ON ib.created_by = created_teacher.id
         LEFT JOIN teachers_cte modified_teacher ON ib.last_modified_by = modified_teacher.id
+    WHERE
+        ib.incident_ts_raw BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
 )
 SELECT
     student_link,
@@ -175,7 +178,7 @@ SELECT
 FROM RankedResults
 WHERE row_num = 1
 ORDER BY
-    incident_ts,
+    incident_ts DESC,
     incident_link,
     incident_title,
     student_number,
