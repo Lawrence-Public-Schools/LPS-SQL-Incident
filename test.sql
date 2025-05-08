@@ -89,6 +89,9 @@ action_code_cte AS (
     JOIN incident_detail ind ON act.action_incident_detail_id = ind.incident_detail_id
     LEFT JOIN incident_lu_sub_code lu_sub ON ind.lu_sub_code_id = lu_sub.lu_sub_code_id
 ),
+teachers_cte AS (
+    SELECT id, lastfirst FROM teachers
+),
 RankedResults AS (
     SELECT
         sb.student_number,
@@ -102,6 +105,8 @@ RankedResults AS (
         el.english_learner_code,
         ac.action_short_desc,
         role.person_role,
+        created_teacher.lastfirst AS created_by_name,
+        modified_teacher.lastfirst AS last_modified_by_name,
         ROW_NUMBER() OVER (
             PARTITION BY ib.incident_id, sb.student_number
             ORDER BY ac.action_short_desc DESC NULLS LAST
@@ -115,6 +120,8 @@ RankedResults AS (
         LEFT JOIN el_cte el ON sb.student_id = el.student_id
         LEFT JOIN role_cte role ON ib.incident_id = role.incident_id AND sb.student_id = role.student_id
         LEFT JOIN action_code_cte ac ON ib.incident_id = ac.incident_id
+        LEFT JOIN teachers_cte created_teacher ON ib.created_by = created_teacher.id
+        LEFT JOIN teachers_cte modified_teacher ON ib.last_modified_by = modified_teacher.id
 )
 SELECT
     student_number,
@@ -127,7 +134,9 @@ SELECT
     sped_code,
     english_learner_code,
     action_short_desc,
-    person_role
+    person_role,
+    created_by_name,
+    last_modified_by_name
 FROM RankedResults
 WHERE row_num = 1
 ORDER BY
