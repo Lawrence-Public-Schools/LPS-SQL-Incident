@@ -1,0 +1,106 @@
+WITH yearquery AS (
+    SELECT 
+        dcid, 
+        abbreviation, 
+        FirstDay, 
+        LastDay, 
+        schoolid 
+    FROM 
+        terms 
+    WHERE 
+        portion = 1 
+        AND schoolid = 0
+),
+incident_base AS (
+    SELECT
+        inc.incident_id,
+        inc.incident_title,
+        TO_CHAR(inc.incident_ts, 'MM-DD-YYYY') AS incident_ts,
+        inc.school_number,
+        inc.created_by,
+        inc.last_modified_by
+    FROM
+        incident inc
+    JOIN yearquery yq ON inc.incident_ts BETWEEN yq.FirstDay AND yq.LastDay
+    WHERE
+        inc.incident_id = 66144
+),
+student_base AS (
+    SELECT
+        stu.id AS student_id,
+        stu.student_number,
+        stu.dcid,
+        stu.state_studentnumber AS state_id,
+        stu.lastfirst AS student_lastfirst,
+        ext.SPED,
+        ext.EL,
+        stu.schoolid
+    FROM
+        students stu
+    LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
+),
+sped_cte AS (
+    SELECT
+        stu.id AS student_id,
+        CASE
+            WHEN LOWER(ext.SPED) = 'yes' THEN 'Yes'
+            WHEN LOWER(ext.SPED) = 'no' THEN 'No'
+            WHEN LOWER(ext.SPED) = 'ref' THEN 'Referral'
+            ELSE 'Unknown'
+        END AS sped_code
+    FROM
+        students stu
+    LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
+),
+el_cte AS (
+    SELECT
+        stu.id AS student_id,
+        CASE
+            WHEN LOWER(ext.EL) IN ('frmr', 'former') THEN 'Former'
+            WHEN LOWER(ext.EL) = 'no' THEN 'No'
+            WHEN LOWER(ext.EL) = 'no-p' THEN 'No-P'
+            WHEN LOWER(ext.EL) = 'ref' THEN 'Referral'
+            WHEN LOWER(ext.EL) = 'yes' THEN 'Yes'
+            WHEN LOWER(ext.EL) = 'yes-p' THEN 'Yes-P'
+            ELSE 'Unknown'
+        END AS english_learner_code
+    FROM
+        students stu
+    LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
+),
+role_cte AS (
+    SELECT
+        ipr.incident_id,
+        ipr.studentid AS student_id,
+        ilc.incident_category AS person_role
+    FROM
+        incident_person_role ipr
+        JOIN incident_detail ind ON ipr.role_incident_detail_id = ind.incident_detail_id
+        JOIN incident_lu_code ilc ON ind.lu_code_id = ilc.lu_code_id
+)
+SELECT
+    sb.student_number,
+    sb.state_id,
+    sb.student_lastfirst,
+    ib.incident_id,
+    ib.incident_ts,
+    ib.incident_title,
+    sch.abbreviation AS school_abbreviation,
+    sp.sped_code,
+    el.english_learner_code,
+    role.person_role
+FROM
+    incident_person_role ipr
+    JOIN incident_base ib ON ipr.incident_id = ib.incident_id
+    JOIN student_base sb ON ipr.studentid = sb.student_id
+    JOIN schools sch ON ib.school_number = sch.school_number
+    LEFT JOIN sped_cte sp ON sb.student_id = sp.student_id
+    LEFT JOIN el_cte el ON sb.student_id = el.student_id
+    LEFT JOIN role_cte role ON ib.incident_id = role.incident_id AND sb.student_id = role.student_id
+ORDER BY
+    sb.student_number,
+    sb.state_id,
+    ib.incident_id,
+    ib.incident_ts,
+    ib.incident_title,
+    sch.abbreviation;
