@@ -18,11 +18,14 @@ incident_base AS (
         TO_CHAR(inc.incident_ts, 'MM-DD-YYYY') AS incident_ts,
         inc.school_number,
         inc.created_by,
-        inc.last_modified_by
+        inc.last_modified_by,
+        ilctype.incident_category
     FROM
         incident inc
     JOIN yearquery yq ON inc.incident_ts BETWEEN yq.FirstDay AND yq.LastDay
-    -- WHERE
+    JOIN incident_detail id ON inc.incident_id = id.incident_id
+    JOIN incident_lu_code ilctype ON id.lu_code_id = ilctype.lu_code_id AND ilctype.code_type = 'incidenttypecode'
+        -- WHERE
     --     inc.incident_id = 66144
 ),
 student_base AS (
@@ -105,6 +108,7 @@ RankedResults AS (
         el.english_learner_code,
         ac.action_short_desc,
         role.person_role,
+        ib.incident_category,
         created_teacher.lastfirst AS created_by_name,
         modified_teacher.lastfirst AS last_modified_by_name,
         ROW_NUMBER() OVER (
@@ -135,6 +139,7 @@ SELECT
     english_learner_code,
     action_short_desc,
     person_role,
+    incident_category,
     created_by_name,
     last_modified_by_name
 FROM RankedResults
