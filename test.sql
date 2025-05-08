@@ -155,29 +155,49 @@ RankedResults AS (
 SELECT
     student_link,
     state_id,
-    student_lastfirst,
-    incident_link,
-    incident_ts,
-    incident_title,
-    school_abbreviation,
+    -- student_lastfirst,
     sped_code,
     english_learner_code,
+    incident_ts,
+    incident_link,
+    incident_title,
+    person_role,
     action_short_desc,
+    action_resolved_desc,
+    incident_category,
     action_plan_begin_dt,
     action_plan_end_dt,
     duration_assigned,
     duration_actual,
-    person_role,
-    incident_category,
-    action_resolved_desc,
     created_by_name,
-    last_modified_by_name
+    last_modified_by_name,
+    school_abbreviation
 FROM RankedResults
 WHERE row_num = 1
 ORDER BY
+    incident_ts,
+    incident_link,
+    incident_title,
     student_number,
     state_id,
-    incident_link,
-    incident_ts,
-    incident_title,
     school_abbreviation;
+
+-- <th> for this report
+<th>Student Number</th>
+<th>State ID</th>
+<th>SPED</th>
+<th>EL</th>
+<th>Incident Date</th>
+<th>Incident ID</th>
+<th>Incident Title</th>
+<th>Incident Category</th>
+<th>Incident Role</th>
+<th>Action Code</th>
+<th>Action Resolved</th>
+<th>Action Plan Begin Date</th>
+<th>Action Plan End Date</th>
+<th>Duration Assigned</th>
+<th>Duration Actual</th>
+<th>Created By</th>
+<th>Last Modified By</th>
+<th>School Abbreviation</th>
