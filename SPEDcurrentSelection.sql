@@ -195,8 +195,8 @@ ORDER BY
 <th>Incident Date</th>
 <th>Incident ID</th>
 <th>Incident Title</th>
-<th>Incident Category</th>
 <th>Incident Role</th>
+<th>Incident Category</th>
 <th>Action Resolved</th>
 <th>Action Code</th>
 <th>Action Plan Begin Date</th>

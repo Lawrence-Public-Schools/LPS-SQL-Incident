@@ -1,126 +1,214 @@
-WITH RankedData AS (
+WITH yearquery AS (
+    SELECT 
+        dcid, 
+        abbreviation, 
+        FirstDay, 
+        LastDay, 
+        schoolid 
+    FROM 
+        terms 
+    WHERE 
+        portion = 1 
+        AND schoolid = 0
+),
+incident_base AS (
     SELECT
         inc.incident_id,
-        chr(60) || 'a href=/admin/incidents/incidentlog.html?id=' || inc.incident_id || ' target=_blank' || chr(62) || inc.incident_id || chr(60) || '/a' || chr(62) AS incident_link,
-        inc.incident_ts,
-        stu.student_number,
-        stu.id AS student_id,
-        stu.dcid AS student_dcid,
-        chr(60) || 'a href=/admin/students/home.html?frn=001' || stu.dcid || ' target=_blank' || chr(62) || stu.student_number || chr(60) || '/a' || chr(62) AS student_link,
         inc.incident_title,
-        ilc.incident_category AS person_role,
+        TO_CHAR(inc.incident_ts, 'YYYY-MM-DD') AS incident_ts,
+        inc.incident_ts AS incident_ts_raw,
+        inc.school_number,
+        inc.created_by,
+        inc.last_modified_by,
         ilctype.incident_category,
-        schools.name AS school_name,
-        created_teacher.lastfirst AS created_by_name,
-        modified_teacher.lastfirst AS last_modified_by_name,
-        CASE 
-            WHEN ilc.incident_category = 'Offender' THEN act.action_plan_begin_dt
-            ELSE NULL
-        END AS action_plan_begin_dt,
-        CASE 
-            WHEN ilc.incident_category = 'Offender' THEN act.action_plan_end_dt
-            ELSE NULL
-        END AS action_plan_end_dt,
-        CASE 
-            WHEN ilc.incident_category = 'Offender' THEN act.duration_assigned
-            ELSE NULL
-        END AS duration_assigned,
-        CASE 
-            WHEN ilc.incident_category = 'Offender' THEN act.duration_actual
-            ELSE NULL
-        END AS duration_actual,
-        CASE 
-            WHEN ilc.incident_category = 'Offender' THEN act.action_resolved_desc
-            ELSE NULL
-        END AS action_resolved_desc,
-        sped.levelofneed AS levelofneed_code,
-        CASE
-            WHEN sped.levelofneed IS NULL THEN 'No SPED Data'
-            WHEN sped.levelofneed = '500' THEN 'Does not apply to student (500)'
-            WHEN sped.levelofneed = '01' THEN 'Low - Less than 2 hours of service per week (01)'
-            WHEN sped.levelofneed = '02' THEN 'Low - 2 hours or more of services per week (02)'
-            WHEN sped.levelofneed = '03' THEN 'Moderate (03)'
-            WHEN sped.levelofneed = '04' THEN 'High (04)'
-            ELSE 'Unknown'
-        END AS levelofneed_label,
-        sped.primarydisability AS primarydisability_code,
-        CASE
-            WHEN sped.primarydisability IS NULL THEN 'No SPED Data'
-            WHEN sped.primarydisability = '500' THEN 'Does not apply to student (500)'
-            WHEN sped.primarydisability = '01' THEN 'Intellectual (01)'
-            WHEN sped.primarydisability = '02' THEN 'Sensory/Hard of Hearing or Deaf (02)'
-            WHEN sped.primarydisability = '03' THEN 'Communication (03)'
-            WHEN sped.primarydisability = '04' THEN 'Sensory/Vision Impairment or Blind (04)'
-            WHEN sped.primarydisability = '05' THEN 'Emotional (05)'
-            WHEN sped.primarydisability = '06' THEN 'Physical (06)'
-            WHEN sped.primarydisability = '07' THEN 'Health (07)'
-            WHEN sped.primarydisability = '08' THEN 'Specific Learning Disabilities (08)'
-            WHEN sped.primarydisability = '09' THEN 'Sensory/Deafblind (09)'
-            WHEN sped.primarydisability = '10' THEN 'Multiple Disabilities (10)'
-            WHEN sped.primarydisability = '11' THEN 'Autism (11)'
-            WHEN sped.primarydisability = '12' THEN 'Neurological (12)'
-            WHEN sped.primarydisability = '13' THEN 'Developmental Delay (13)'
-            ELSE 'Unknown'
-        END AS primarydisability_label,
-        ROW_NUMBER() OVER (
-            PARTITION BY inc.incident_id, stu.student_number
-            ORDER BY act.action_plan_begin_dt DESC NULLS LAST
-        ) AS row_num
+        act.action_resolved_desc
     FROM
         incident inc
-    JOIN incident_person_role ipr ON inc.incident_id = ipr.incident_id
-    JOIN students stu ON ipr.studentid = stu.id
-    JOIN incident_detail ind ON ipr.role_incident_detail_id = ind.incident_detail_id
-    JOIN incident_lu_code ilc ON ind.lu_code_id = ilc.lu_code_id
-    JOIN schools ON inc.school_number = schools.school_number
+    JOIN yearquery yq ON inc.incident_ts BETWEEN yq.FirstDay AND yq.LastDay
     JOIN incident_detail id ON inc.incident_id = id.incident_id
     JOIN incident_lu_code ilctype ON id.lu_code_id = ilctype.lu_code_id AND ilctype.code_type = 'incidenttypecode'
-    LEFT JOIN teachers created_teacher ON inc.created_by = created_teacher.id
-    LEFT JOIN teachers modified_teacher ON inc.last_modified_by = modified_teacher.id
     LEFT JOIN (
         SELECT DISTINCT
             act.incident_id,
-            act.action_plan_begin_dt,
-            act.action_plan_end_dt,
-            act.duration_assigned,
-            act.duration_actual,
             act.action_resolved_desc
         FROM
             PS.INCIDENT_ACTION act
     ) act ON inc.incident_id = act.incident_id
-    LEFT JOIN (
-        SELECT
-            stu.student_number,
-            sped.levelofneed,
-            sped.primarydisability
-        FROM
-            students stu
-        LEFT JOIN PS.S_MA_STU_SPED_X sped ON stu.dcid = sped.STUDENTSDCID
-    ) sped ON stu.student_number = sped.student_number
+    WHERE
+        inc.incident_ts BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
+),
+student_base AS (
+    SELECT
+        stu.id AS student_id,
+        stu.student_number,
+        stu.dcid,
+        stu.state_studentnumber AS state_id,
+        stu.lastfirst AS student_lastfirst,
+        ext.SPED,
+        ext.EL,
+        stu.schoolid
+    FROM
+        students stu
+        LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
     WHERE
         stu.schoolid = ~(curschoolid)
-        AND inc.incident_ts BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
+),
+sped_cte AS (
+    SELECT
+        stu.id AS student_id,
+        CASE
+            WHEN LOWER(ext.SPED) = 'yes' THEN 'Yes'
+            WHEN LOWER(ext.SPED) = 'no' THEN 'No'
+            WHEN LOWER(ext.SPED) = 'ref' THEN 'Referral'
+            ELSE 'Unknown'
+        END AS sped_code
+    FROM
+        students stu
+        LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
+    WHERE
+        stu.schoolid = ~(curschoolid)
+),
+el_cte AS (
+    SELECT
+        stu.id AS student_id,
+        CASE
+            WHEN LOWER(ext.EL) IN ('frmr', 'former') THEN 'Former'
+            WHEN LOWER(ext.EL) = 'no' THEN 'No'
+            WHEN LOWER(ext.EL) = 'no-p' THEN 'No-P'
+            WHEN LOWER(ext.EL) = 'ref' THEN 'Referral'
+            WHEN LOWER(ext.EL) = 'yes' THEN 'Yes'
+            WHEN LOWER(ext.EL) = 'yes-p' THEN 'Yes-P'
+            ELSE 'Unknown'
+        END AS english_learner_code
+    FROM
+        students stu
+        LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
+    WHERE
+        stu.schoolid = ~(curschoolid)
+),
+role_cte AS (
+    SELECT
+        ipr.incident_id,
+        ipr.studentid AS student_id,
+        ilc.incident_category AS person_role
+    FROM
+        incident_person_role ipr
+        JOIN incident_detail ind ON ipr.role_incident_detail_id = ind.incident_detail_id
+        JOIN incident_lu_code ilc ON ind.lu_code_id = ilc.lu_code_id
+        JOIN students stu ON ipr.studentid = stu.id
+    WHERE
+        stu.schoolid = ~(curschoolid)
+),
+action_code_cte AS (
+    SELECT
+        act.incident_id,
+        ind.lu_sub_code_id AS action_code,
+        lu_sub.short_desc AS action_short_desc
+    FROM
+        PS.INCIDENT_ACTION act
+    JOIN incident_detail ind ON act.action_incident_detail_id = ind.incident_detail_id
+    LEFT JOIN incident_lu_sub_code lu_sub ON ind.lu_sub_code_id = lu_sub.lu_sub_code_id
+),
+action_plan_cte AS (
+    SELECT
+        act.incident_id,
+        TO_CHAR(act.action_plan_begin_dt, 'MM-DD-YYYY') AS action_plan_begin_dt,
+        TO_CHAR(act.action_plan_end_dt, 'MM-DD-YYYY') AS action_plan_end_dt,
+        act.duration_assigned,
+        act.duration_actual
+    FROM
+        PS.INCIDENT_ACTION act
+),
+teachers_cte AS (
+    SELECT id, lastfirst FROM teachers
+),
+RankedResults AS (
+    SELECT
+        sb.student_number,
+        sb.state_id,
+        sb.student_lastfirst,
+        chr(60) || 'a href=/admin/incidents/incidentlog.html?id=' || ib.incident_id || ' target=_blank' || chr(62) || ib.incident_id || chr(60) || '/a' || chr(62) AS incident_link,
+        chr(60) || 'a href=/admin/students/home.html?frn=001' || sb.dcid || ' target=_blank' || chr(62) || sb.student_number || chr(60) || '/a' || chr(62) AS student_link,
+        ib.incident_ts,
+        ib.incident_title,
+        sch.abbreviation AS school_abbreviation,
+        sp.sped_code,
+        el.english_learner_code,
+        ac.action_short_desc,
+        COALESCE(TO_CHAR(ap.action_plan_begin_dt), 'N/A') AS action_plan_begin_dt,
+        COALESCE(TO_CHAR(ap.action_plan_end_dt), 'N/A') AS action_plan_end_dt,
+        COALESCE(TO_CHAR(ap.duration_assigned), 'N/A') AS duration_assigned,
+        COALESCE(TO_CHAR(ap.duration_actual), 'N/A') AS duration_actual,
+        role.person_role,
+        ib.incident_category,
+        COALESCE(ib.action_resolved_desc, 'N/A') AS action_resolved_desc,
+        created_teacher.lastfirst AS created_by_name,
+        modified_teacher.lastfirst AS last_modified_by_name,
+        ROW_NUMBER() OVER (
+            PARTITION BY ib.incident_id, sb.student_number
+            ORDER BY ac.action_short_desc DESC NULLS LAST
+        ) AS row_num
+    FROM
+        incident_person_role ipr
+        JOIN incident_base ib ON ipr.incident_id = ib.incident_id
+        JOIN yearquery yq ON ib.incident_ts_raw BETWEEN yq.FirstDay AND yq.LastDay
+        JOIN student_base sb ON ipr.studentid = sb.student_id
+        JOIN schools sch ON ib.school_number = sch.school_number
+        LEFT JOIN sped_cte sp ON sb.student_id = sp.student_id
+        LEFT JOIN el_cte el ON sb.student_id = el.student_id
+        LEFT JOIN role_cte role ON ib.incident_id = role.incident_id AND sb.student_id = role.student_id
+        LEFT JOIN action_code_cte ac ON ib.incident_id = ac.incident_id
+        LEFT JOIN action_plan_cte ap ON ib.incident_id = ap.incident_id
+        LEFT JOIN teachers_cte created_teacher ON ib.created_by = created_teacher.id
+        LEFT JOIN teachers_cte modified_teacher ON ib.last_modified_by = modified_teacher.id
+    WHERE
+        ib.incident_ts_raw BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
 )
 SELECT
+    student_link,
+    state_id,
+    sped_code,
+    english_learner_code,
     incident_ts,
     incident_link,
-    student_link,
     incident_title,
     person_role,
+    action_short_desc,
+    action_resolved_desc,
     incident_category,
-    school_name,
-    created_by_name,
-    last_modified_by_name,
     action_plan_begin_dt,
     action_plan_end_dt,
     duration_assigned,
     duration_actual,
-    action_resolved_desc,
-    levelofneed_label,
-    primarydisability_label
-FROM RankedData
+    created_by_name,
+    last_modified_by_name,
+    school_abbreviation
+FROM RankedResults
 WHERE row_num = 1
 ORDER BY
     incident_ts DESC,
-    incident_id,
-    student_number;
+    incident_link,
+    incident_title,
+    student_number,
+    state_id,
+    school_abbreviation;
+
+-- <th> for this report
+<th>Student Number</th>
+<th>State ID</th>
+<th>SPED</th>
+<th>EL</th>
+<th>Incident Date</th>
+<th>Incident ID</th>
+<th>Incident Title</th>
+<th>Incident Role</th>
+<th>Incident Category</th>
+<th>Action Resolved</th>
+<th>Action Code</th>
+<th>Action Plan Begin Date</th>
+<th>Action Plan End Date</th>
+<th>Duration Assigned</th>
+<th>Duration Actual</th>
+<th>Created By</th>
+<th>Last Modified By</th>
+<th>School Abbreviation</th>
