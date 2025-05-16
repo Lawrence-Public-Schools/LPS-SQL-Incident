@@ -158,7 +158,6 @@ RankedResults AS (
 SELECT
     student_link,
     state_id,
-    -- student_lastfirst,
     sped_code,
     english_learner_code,
     incident_ts,
@@ -193,10 +192,10 @@ ORDER BY
 <th>Incident Date</th>
 <th>Incident ID</th>
 <th>Incident Title</th>
-<th>Incident Category</th>
 <th>Incident Role</th>
-<th>Action Code</th>
+<th>Incident Category</th>
 <th>Action Resolved</th>
+<th>Action Code</th>
 <th>Action Plan Begin Date</th>
 <th>Action Plan End Date</th>
 <th>Duration Assigned</th>
