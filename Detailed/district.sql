@@ -121,8 +121,8 @@ teachers_cte AS (
 student_contacts_cte AS (
     SELECT
         sb.dcid AS STUDENTDCID,
-        COALESCE(NULLIF(MAX(CASE WHEN cs.DESCRIPTION = 'Mother' THEN p.LASTNAME || ', ' || p.FIRSTNAME END), ''), 'Mother not found') AS mother_name,
-        COALESCE(NULLIF(MAX(CASE WHEN cs.DESCRIPTION = 'Father' THEN p.LASTNAME || ', ' || p.FIRSTNAME END), ''), 'Father not found') AS father_name
+        COALESCE(NULLIF(MAX(CASE WHEN cs.DESCRIPTION = 'Mother' THEN p.LASTNAME || ', ' || p.FIRSTNAME END), ''), 'Guardian not listed') AS mother_name,
+        COALESCE(NULLIF(MAX(CASE WHEN cs.DESCRIPTION = 'Father' THEN p.LASTNAME || ', ' || p.FIRSTNAME END), ''), 'Guardian not listed') AS father_name
     FROM student_base sb
     LEFT JOIN STUDENTCONTACTASSOC sca ON sb.dcid = sca.STUDENTDCID
     LEFT JOIN PERSON p ON p.ID = sca.PERSONID
