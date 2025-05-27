@@ -34,8 +34,8 @@ incident_base AS (
         FROM
             PS.INCIDENT_ACTION act
     ) act ON inc.incident_id = act.incident_id
-    WHERE
-        inc.incident_ts BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
+    -- WHERE
+    --     inc.incident_ts BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
 ),
 student_base AS (
     SELECT
@@ -113,11 +113,24 @@ action_plan_cte AS (
 teachers_cte AS (
     SELECT id, lastfirst FROM teachers
 ),
+student_contacts_cte AS (
+    SELECT
+        sb.dcid AS STUDENTDCID,
+        COALESCE(NULLIF(MAX(CASE WHEN cs.DESCRIPTION = 'Mother' THEN p.FIRSTNAME || ' ' || p.LASTNAME END), ''), 'Mother not found') AS mother_name,
+        COALESCE(NULLIF(MAX(CASE WHEN cs.DESCRIPTION = 'Father' THEN p.FIRSTNAME || ' ' || p.LASTNAME END), ''), 'Father not found') AS father_name
+    FROM student_base sb
+    LEFT JOIN STUDENTCONTACTASSOC sca ON sb.dcid = sca.STUDENTDCID
+    LEFT JOIN PERSON p ON p.ID = sca.PERSONID
+    LEFT JOIN STUDENTCONTACTDETAIL scd ON sca.STUDENTCONTACTASSOCID = scd.STUDENTCONTACTASSOCID
+    LEFT JOIN CODESET cs ON scd.RELATIONSHIPTYPECODESETID = cs.CODESETID
+    GROUP BY sb.dcid
+),
 RankedResults AS (
     SELECT
         sb.student_number,
         sb.state_id,
         sb.student_lastfirst,
+        sb.dcid,
         chr(60) || 'a href=/admin/incidents/incidentlog.html?id=' || ib.incident_id || ' target=_blank' || chr(62) || ib.incident_id || chr(60) || '/a' || chr(62) AS incident_link,
         chr(60) || 'a href=/admin/students/home.html?frn=001' || sb.dcid || ' target=_blank' || chr(62) || sb.student_number || chr(60) || '/a' || chr(62) AS student_link,
         ib.incident_ts,
@@ -135,6 +148,8 @@ RankedResults AS (
         COALESCE(ib.action_resolved_desc, 'N/A') AS action_resolved_desc,
         created_teacher.lastfirst AS created_by_name,
         modified_teacher.lastfirst AS last_modified_by_name,
+        sc.mother_name,
+        sc.father_name,
         ROW_NUMBER() OVER (
             PARTITION BY ib.incident_id, sb.student_number
             ORDER BY ac.action_short_desc DESC NULLS LAST
@@ -152,8 +167,9 @@ RankedResults AS (
         LEFT JOIN action_plan_cte ap ON ib.incident_id = ap.incident_id
         LEFT JOIN teachers_cte created_teacher ON ib.created_by = created_teacher.id
         LEFT JOIN teachers_cte modified_teacher ON ib.last_modified_by = modified_teacher.id
-    WHERE
-        ib.incident_ts_raw BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
+        LEFT JOIN student_contacts_cte sc ON sb.dcid = sc.STUDENTDCID
+    -- WHERE
+    --     ib.incident_ts_raw BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
 )
 SELECT
     student_link,
@@ -174,7 +190,9 @@ SELECT
     duration_actual,
     created_by_name,
     last_modified_by_name,
-    school_abbreviation
+    school_abbreviation,
+    mother_name,
+    father_name
 FROM RankedResults
 WHERE row_num = 1
 ORDER BY
@@ -204,3 +222,5 @@ ORDER BY
 <th>Created By</th>
 <th>Last Modified By</th>
 <th>School Abbreviation</th>
+<th>Mother Name</th>
+<th>Father Name</th>
