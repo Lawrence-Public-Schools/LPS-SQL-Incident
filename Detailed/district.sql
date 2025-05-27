@@ -121,8 +121,8 @@ teachers_cte AS (
 student_contacts_cte AS (
     SELECT
         sb.dcid AS STUDENTDCID,
-        COALESCE(NULLIF(MAX(CASE WHEN cs.DESCRIPTION = 'Mother' THEN p.FIRSTNAME || ' ' || p.LASTNAME END), ''), 'Mother not found') AS mother_name,
-        COALESCE(NULLIF(MAX(CASE WHEN cs.DESCRIPTION = 'Father' THEN p.FIRSTNAME || ' ' || p.LASTNAME END), ''), 'Father not found') AS father_name
+        COALESCE(NULLIF(MAX(CASE WHEN cs.DESCRIPTION = 'Mother' THEN p.LASTNAME || ', ' || p.FIRSTNAME END), ''), 'Mother not found') AS mother_name,
+        COALESCE(NULLIF(MAX(CASE WHEN cs.DESCRIPTION = 'Father' THEN p.LASTNAME || ', ' || p.FIRSTNAME END), ''), 'Father not found') AS father_name
     FROM student_base sb
     LEFT JOIN STUDENTCONTACTASSOC sca ON sb.dcid = sca.STUDENTDCID
     LEFT JOIN PERSON p ON p.ID = sca.PERSONID
@@ -185,8 +185,10 @@ RankedResults AS (
 SELECT
     student_link,
     state_id,
-    student_lastfirst,
     dob,
+    student_lastfirst,
+    mother_name,
+    father_name,
     street,
     city,
     state,
@@ -207,9 +209,7 @@ SELECT
     duration_actual,
     created_by_name,
     last_modified_by_name,
-    school_abbreviation,
-    mother_name,
-    father_name
+    school_abbreviation
 FROM RankedResults
 WHERE row_num = 1
 ORDER BY
