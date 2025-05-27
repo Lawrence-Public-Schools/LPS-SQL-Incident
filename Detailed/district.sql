@@ -46,7 +46,12 @@ student_base AS (
         stu.lastfirst AS student_lastfirst,
         ext.SPED,
         ext.EL,
-        stu.schoolid
+        stu.schoolid,
+        stu.dob,
+        stu.street,
+        stu.city,
+        stu.state,
+        stu.zip
     FROM
         students stu
     LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
@@ -131,6 +136,12 @@ RankedResults AS (
         sb.state_id,
         sb.student_lastfirst,
         sb.dcid,
+        TO_CHAR(sb.dob, 'YYYY-MM-DD') AS dob,
+        sb.street,
+        sb.city,
+        sb.state,
+        sb.zip,
+        sb.street || ', ' || sb.city || ', ' || sb.state || ' ' || sb.zip AS address_full,
         chr(60) || 'a href=/admin/incidents/incidentlog.html?id=' || ib.incident_id || ' target=_blank' || chr(62) || ib.incident_id || chr(60) || '/a' || chr(62) AS incident_link,
         chr(60) || 'a href=/admin/students/home.html?frn=001' || sb.dcid || ' target=_blank' || chr(62) || sb.student_number || chr(60) || '/a' || chr(62) AS student_link,
         ib.incident_ts,
@@ -175,6 +186,12 @@ SELECT
     student_link,
     state_id,
     student_lastfirst,
+    dob,
+    street,
+    city,
+    state,
+    zip,
+    address_full,
     sped_code,
     english_learner_code,
     incident_ts,
