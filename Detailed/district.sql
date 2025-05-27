@@ -158,6 +158,7 @@ RankedResults AS (
 SELECT
     student_link,
     state_id,
+    student_lastfirst,
     sped_code,
     english_learner_code,
     incident_ts,
