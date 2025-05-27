@@ -34,8 +34,8 @@ incident_base AS (
         FROM
             PS.INCIDENT_ACTION act
     ) act ON inc.incident_id = act.incident_id
-    -- WHERE
-    --     inc.incident_ts BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
+    WHERE
+        inc.incident_ts BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
 ),
 student_base AS (
     SELECT
@@ -179,8 +179,8 @@ RankedResults AS (
         LEFT JOIN teachers_cte created_teacher ON ib.created_by = created_teacher.id
         LEFT JOIN teachers_cte modified_teacher ON ib.last_modified_by = modified_teacher.id
         LEFT JOIN student_contacts_cte sc ON sb.dcid = sc.STUDENTDCID
-    -- WHERE
-    --     ib.incident_ts_raw BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
+    WHERE
+        ib.incident_ts_raw BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
 )
 SELECT
     student_link,
@@ -223,15 +223,24 @@ ORDER BY
 -- <th> for this report
 <th>Student Number</th>
 <th>State ID</th>
+<th>DOB</th>
+<th>Student Name</th>
+<th>Mother Name</th>
+<th>Father Name</th>
+<th>Street</th>
+<th>City</th>
+<th>State</th>
+<th>Zip</th>
+<th>Full Address</th>
 <th>SPED</th>
 <th>EL</th>
 <th>Incident Date</th>
 <th>Incident ID</th>
 <th>Incident Title</th>
 <th>Incident Role</th>
-<th>Incident Category</th>
 <th>Action Resolved</th>
 <th>Action Code</th>
+<th>Incident Category</th>
 <th>Action Plan Begin Date</th>
 <th>Action Plan End Date</th>
 <th>Duration Assigned</th>
@@ -239,5 +248,3 @@ ORDER BY
 <th>Created By</th>
 <th>Last Modified By</th>
 <th>School Abbreviation</th>
-<th>Mother Name</th>
-<th>Father Name</th>
