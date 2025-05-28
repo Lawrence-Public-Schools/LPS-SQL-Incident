@@ -161,8 +161,6 @@ RankedResults AS (
         LEFT JOIN action_plan_cte ap ON ib.incident_id = ap.incident_id
         LEFT JOIN teachers_cte created_teacher ON ib.created_by = created_teacher.id
         LEFT JOIN teachers_cte modified_teacher ON ib.last_modified_by = modified_teacher.id
-    WHERE
-        ib.incident_ts_raw BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
 )
 SELECT
     student_link,

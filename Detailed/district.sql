@@ -179,8 +179,6 @@ RankedResults AS (
         LEFT JOIN teachers_cte created_teacher ON ib.created_by = created_teacher.id
         LEFT JOIN teachers_cte modified_teacher ON ib.last_modified_by = modified_teacher.id
         LEFT JOIN student_contacts_cte sc ON sb.dcid = sc.STUDENTDCID
-    WHERE
-        ib.incident_ts_raw BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
 )
 SELECT
     student_link,
