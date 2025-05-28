@@ -11,6 +11,103 @@ WITH yearquery AS (
         portion = 1 
         AND schoolid = 0
 ),
+student_base AS (
+    SELECT
+        stu.id AS student_id,
+        stu.student_number,
+        stu.dcid,
+        stu.state_studentnumber AS state_id,
+        stu.lastfirst AS student_lastfirst,
+        ext.SPED,
+        ext.EL,
+        stu.schoolid,
+        stu.dob,
+        stu.street,
+        stu.city,
+        stu.state,
+        stu.zip
+    FROM
+        students stu
+        JOIN ~[temp.table.current.selection:students] stusel ON stusel.dcid = stu.dcid
+        LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
+),
+sped_cte AS (
+    SELECT
+        stu.id AS student_id,
+        CASE
+            WHEN LOWER(ext.SPED) = 'yes' THEN 'Yes'
+            WHEN LOWER(ext.SPED) = 'no' THEN 'No'
+            WHEN LOWER(ext.SPED) = 'ref' THEN 'Referral'
+            ELSE 'Unknown'
+        END AS sped_code
+    FROM
+        students stu
+        JOIN ~[temp.table.current.selection:students] stusel ON stusel.dcid = stu.dcid
+        LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
+),
+el_cte AS (
+    SELECT
+        stu.id AS student_id,
+        CASE
+            WHEN LOWER(ext.EL) IN ('frmr', 'former') THEN 'Former'
+            WHEN LOWER(ext.EL) = 'no' THEN 'No'
+            WHEN LOWER(ext.EL) = 'no-p' THEN 'No-P'
+            WHEN LOWER(ext.EL) = 'ref' THEN 'Referral'
+            WHEN LOWER(ext.EL) = 'yes' THEN 'Yes'
+            WHEN LOWER(ext.EL) = 'yes-p' THEN 'Yes-P'
+            ELSE 'Unknown'
+        END AS english_learner_code
+    FROM
+        students stu
+        JOIN ~[temp.table.current.selection:students] stusel ON stusel.dcid = stu.dcid
+        LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
+),
+role_cte AS (
+    SELECT
+        ipr.incident_id,
+        ipr.studentid AS student_id,
+        ilc.incident_category AS person_role
+    FROM
+        incident_person_role ipr
+        JOIN incident_detail ind ON ipr.role_incident_detail_id = ind.incident_detail_id
+        JOIN incident_lu_code ilc ON ind.lu_code_id = ilc.lu_code_id
+        JOIN students stu ON ipr.studentid = stu.id
+),
+student_contacts_cte AS (
+    SELECT
+        sb.dcid AS STUDENTDCID,
+        COALESCE(NULLIF(MAX(CASE WHEN cs.DESCRIPTION = 'Mother' THEN p.LASTNAME || ', ' || p.FIRSTNAME END), ''), 'Guardian not listed') AS mother_name,
+        COALESCE(NULLIF(MAX(CASE WHEN cs.DESCRIPTION = 'Father' THEN p.LASTNAME || ', ' || p.FIRSTNAME END), ''), 'Guardian not listed') AS father_name
+    FROM student_base sb
+    LEFT JOIN STUDENTCONTACTASSOC sca ON sb.dcid = sca.STUDENTDCID
+    LEFT JOIN PERSON p ON p.ID = sca.PERSONID
+    LEFT JOIN STUDENTCONTACTDETAIL scd ON sca.STUDENTCONTACTASSOCID = scd.STUDENTCONTACTASSOCID
+    LEFT JOIN CODESET cs ON scd.RELATIONSHIPTYPECODESETID = cs.CODESETID
+    GROUP BY sb.dcid
+),
+action_code_cte AS (
+    SELECT
+        act.incident_id,
+        ind.lu_sub_code_id AS action_code,
+        lu_sub.short_desc AS action_short_desc
+    FROM
+        PS.INCIDENT_ACTION act
+    JOIN incident_detail ind ON act.action_incident_detail_id = ind.incident_detail_id
+    LEFT JOIN incident_lu_sub_code lu_sub ON ind.lu_sub_code_id = lu_sub.lu_sub_code_id
+),
+action_plan_cte AS (
+    SELECT
+        act.incident_id,
+        TO_CHAR(act.action_plan_begin_dt, 'MM-DD-YYYY') AS action_plan_begin_dt,
+        TO_CHAR(act.action_plan_end_dt, 'MM-DD-YYYY') AS action_plan_end_dt,
+        act.duration_assigned,
+        act.duration_actual
+    FROM
+        PS.INCIDENT_ACTION act
+),
+teachers_cte AS (
+    SELECT id, lastfirst FROM teachers
+),
 incident_base AS (
     SELECT
         inc.incident_id,
@@ -37,96 +134,18 @@ incident_base AS (
     WHERE
         inc.incident_ts BETWEEN TO_DATE('%param1%', '~[dateformat]') AND TO_DATE('%param2%', '~[dateformat]')
 ),
-student_base AS (
-    SELECT
-        stu.id AS student_id,
-        stu.student_number,
-        stu.dcid,
-        stu.state_studentnumber AS state_id,
-        stu.lastfirst AS student_lastfirst,
-        ext.SPED,
-        ext.EL,
-        stu.schoolid
-    FROM
-        students stu
-        LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
-    WHERE
-        stu.schoolid = ~(curschoolid)
-),
-sped_cte AS (
-    SELECT
-        stu.id AS student_id,
-        CASE
-            WHEN LOWER(ext.SPED) = 'yes' THEN 'Yes'
-            WHEN LOWER(ext.SPED) = 'no' THEN 'No'
-            WHEN LOWER(ext.SPED) = 'ref' THEN 'Referral'
-            ELSE 'Unknown'
-        END AS sped_code
-    FROM
-        students stu
-        LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
-    WHERE
-        stu.schoolid = ~(curschoolid)
-),
-el_cte AS (
-    SELECT
-        stu.id AS student_id,
-        CASE
-            WHEN LOWER(ext.EL) IN ('frmr', 'former') THEN 'Former'
-            WHEN LOWER(ext.EL) = 'no' THEN 'No'
-            WHEN LOWER(ext.EL) = 'no-p' THEN 'No-P'
-            WHEN LOWER(ext.EL) = 'ref' THEN 'Referral'
-            WHEN LOWER(ext.EL) = 'yes' THEN 'Yes'
-            WHEN LOWER(ext.EL) = 'yes-p' THEN 'Yes-P'
-            ELSE 'Unknown'
-        END AS english_learner_code
-    FROM
-        students stu
-        LEFT JOIN U_DEF_EXT_STUDENTS ext ON stu.dcid = ext.STUDENTSDCID
-    WHERE
-        stu.schoolid = ~(curschoolid)
-),
-role_cte AS (
-    SELECT
-        ipr.incident_id,
-        ipr.studentid AS student_id,
-        ilc.incident_category AS person_role
-    FROM
-        incident_person_role ipr
-        JOIN incident_detail ind ON ipr.role_incident_detail_id = ind.incident_detail_id
-        JOIN incident_lu_code ilc ON ind.lu_code_id = ilc.lu_code_id
-        JOIN students stu ON ipr.studentid = stu.id
-    WHERE
-        stu.schoolid = ~(curschoolid)
-),
-action_code_cte AS (
-    SELECT
-        act.incident_id,
-        ind.lu_sub_code_id AS action_code,
-        lu_sub.short_desc AS action_short_desc
-    FROM
-        PS.INCIDENT_ACTION act
-    JOIN incident_detail ind ON act.action_incident_detail_id = ind.incident_detail_id
-    LEFT JOIN incident_lu_sub_code lu_sub ON ind.lu_sub_code_id = lu_sub.lu_sub_code_id
-),
-action_plan_cte AS (
-    SELECT
-        act.incident_id,
-        TO_CHAR(act.action_plan_begin_dt, 'MM-DD-YYYY') AS action_plan_begin_dt,
-        TO_CHAR(act.action_plan_end_dt, 'MM-DD-YYYY') AS action_plan_end_dt,
-        act.duration_assigned,
-        act.duration_actual
-    FROM
-        PS.INCIDENT_ACTION act
-),
-teachers_cte AS (
-    SELECT id, lastfirst FROM teachers
-),
 RankedResults AS (
     SELECT
         sb.student_number,
         sb.state_id,
         sb.student_lastfirst,
+        sb.dcid,
+        TO_CHAR(sb.dob, 'YYYY-MM-DD') AS dob,
+        sb.street,
+        sb.city,
+        sb.state,
+        sb.zip,
+        sb.street || ', ' || sb.city || ', ' || sb.state || ' ' || sb.zip AS address_full,
         chr(60) || 'a href=/admin/incidents/incidentlog.html?id=' || ib.incident_id || ' target=_blank' || chr(62) || ib.incident_id || chr(60) || '/a' || chr(62) AS incident_link,
         chr(60) || 'a href=/admin/students/home.html?frn=001' || sb.dcid || ' target=_blank' || chr(62) || sb.student_number || chr(60) || '/a' || chr(62) AS student_link,
         ib.incident_ts,
@@ -144,6 +163,8 @@ RankedResults AS (
         COALESCE(ib.action_resolved_desc, 'N/A') AS action_resolved_desc,
         created_teacher.lastfirst AS created_by_name,
         modified_teacher.lastfirst AS last_modified_by_name,
+        sc.mother_name,
+        sc.father_name,
         ROW_NUMBER() OVER (
             PARTITION BY ib.incident_id, sb.student_number
             ORDER BY ac.action_short_desc DESC NULLS LAST
@@ -161,10 +182,20 @@ RankedResults AS (
         LEFT JOIN action_plan_cte ap ON ib.incident_id = ap.incident_id
         LEFT JOIN teachers_cte created_teacher ON ib.created_by = created_teacher.id
         LEFT JOIN teachers_cte modified_teacher ON ib.last_modified_by = modified_teacher.id
+        LEFT JOIN student_contacts_cte sc ON sb.dcid = sc.STUDENTDCID
 )
 SELECT
     student_link,
     state_id,
+    dob,
+    student_lastfirst,
+    mother_name,
+    father_name,
+    street,
+    city,
+    state,
+    zip,
+    address_full,
     sped_code,
     english_learner_code,
     incident_ts,
@@ -194,15 +225,24 @@ ORDER BY
 -- <th> for this report, make sure these are inline when submitting to PS reports or will cause UX errors with spacing. 
 <th>Student Number</th>
 <th>State ID</th>
+<th>DOB</th>
+<th>Student Name</th>
+<th>Mother Name</th>
+<th>Father Name</th>
+<th>Street</th>
+<th>City</th>
+<th>State</th>
+<th>Zip</th>
+<th>Full Address</th>
 <th>SPED</th>
 <th>EL</th>
 <th>Incident Date</th>
 <th>Incident ID</th>
 <th>Incident Title</th>
 <th>Incident Role</th>
-<th>Incident Category</th>
 <th>Action Resolved</th>
 <th>Action Code</th>
+<th>Incident Category</th>
 <th>Action Plan Begin Date</th>
 <th>Action Plan End Date</th>
 <th>Duration Assigned</th>
